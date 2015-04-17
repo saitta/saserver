@@ -1,0 +1,21 @@
+{
+  "name": "polymer-ui-animated-pages",
+  "private": true,
+  "dependencies": {
+    "polymer": "Polymer/polymer#0.2.4",
+    "polymer-animation": "Polymer/polymer-animation#0.2.4",
+    "polymer-ui-base": "Polymer/polymer-ui-base#0.2.4",
+    "polymer-ui-pages": "Polymer/polymer-ui-pages#0.2.4"
+  },
+  "version": "0.2.4",
+  "homepage": "https://github.com/Polymer/polymer-ui-animated-pages",
+  "_release": "0.2.4",
+  "_resolution": {
+    "type": "version",
+    "tag": "0.2.4",
+    "commit": "68732f1e14844d890bf67ec2b2ea9b3d108b29e4"
+  },
+  "_source": "git://github.com/Polymer/polymer-ui-animated-pages.git",
+  "_target": "~0.2.1",
+  "_originalSource": "Polymer/polymer-ui-animated-pages"
+}

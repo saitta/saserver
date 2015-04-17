@@ -1,0 +1,197 @@
+<link rel="import" href="../bower_components/polymer/polymer.html">
+
+<polymer-element name="device-list"  attributes="stuff">
+
+    <template>
+        <style>
+            :host {
+            position: relative;
+            display: inline-block;
+            background-color: lemonChiffon;
+            bottom: 0px;
+            width: 300px;
+            height: 300px;
+
+            }
+            td {
+            padding: 12px;
+            }
+
+            #feedback {
+            transition: opacity 350ms ease-in-out;
+            }
+        </style>
+        <div>
+            <table id="m_dev_table" width="100%">
+                <!-- <caption>HK</caption>
+                <colgroup span="2" title="title"></colgroup>
+                -->
+                <tbody>
+
+                    <template repeat="{{dev in devices}}">
+                        <tr>
+                        <td>{{dev.Name}}</td>
+                            <td>
+                                <button on-click="{{sendOn}}" value="{{dev.Name}}">ON</button>
+                            </td>
+                            <td>
+                                <button on-click="{{sendOff}}" value="{{dev.Name}}">OFF</button>
+                            </td>
+                            <template bind if="{{ dev.Type == 1 }}">
+                                <td>
+                                    <input id="{{dev.Name}}" on-mouseup="{{setRange}}" type="range" min="0" max="255" step="1" value="{{dev.Dimlevel}}"> </input>
+                                </td>
+                                <td class="dev_value">
+                                    <input type="number" min="0" max="10000" step="10" value="{{dev.Dimlevel}}" title="{{dev.Name}}" required>
+                                </td>
+                            </template>
+                            <template bind if="{{ dev.Type == 0 }}">
+                                <td>
+                                    <img src="{{dev.Status | getBulb}}" \>
+                                </td>
+                            </template>
+                        </tr>
+                    </template>
+                <!--
+                <tr>
+                    <td style="min-width: 15em;" ><span id="feedback" style="opacity: {{feedbackOpacity}} ">{{feedback}}</span></td>
+                </tr>
+                -->
+                    <div style=" opacity: {{feedbackOpacity}}" id="feedback" >
+                        command sent!
+                    </div>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <script>
+		Polymer('device-list', {
+			show : false,
+			feedbackOpacity : 0,
+			feedback : 'command sent!',
+			command : 'None',
+			devices : [],
+			loadThis : function(e, detail, target) {
+				console.log('device-list: loadThis');
+			},
+			created : function() {
+				console.log('device-list: created: ' + screen.width);
+                if(screen.width<1200) {
+                    selected = 1;
+                    var meta = document.createElement('meta');
+                    meta.name = "viewport";
+                    meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0";
+                    document.getElementsByTagName('head')[0].appendChild(meta);
+
+                    //<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+                    /*
+                    var meta = new Element.tag('meta')
+                    ..name = "viewport"
+                    ..content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0";
+
+                    window.document.documentElement.append(meta);
+                    */
+
+                }
+
+                /*
+                var css = query('#theStyle');
+                var cssmobile = query('#theStyleMobile');
+
+                var tmp = window.document.$dom_styleSheets;
+                for(int i = 0;i<tmp.length;i++) {
+                if(i == selected) {
+                  print("using:${selected}");
+                  tmp[i].disabled = false;
+                }
+                else {
+                  print("disabling:${i} selected:${selected}");
+                  tmp[i].disabled = true;
+                }
+                }
+                */
+
+			},
+			ready : function() {
+			    self = this;
+				function waitForElement() {
+        		    if(typeof devices !== "undefined"){
+                        var keys = Object.keys(devices);
+                        for(var i=0,len = keys.length;i<len;i++) {
+                            if(devices[keys[i]].Type < 2) {
+                                self.devices.push(devices[keys[i]]);
+                            }
+                            console.log(keys[i]);
+                        }
+                        for(var i=0,len = self.devices.length;i<len;i++) {
+                            console.log('device-list: ready: ' + self.devices[i].Name);
+                        }
+
+    		        }
+    		        else{
+        		        setTimeout(function(){
+            		        waitForElement();
+        		        },250);
+    		        }
+                }
+		        waitForElement();
+			},
+			enteredView : function() {
+			},
+			leftView : function() {
+			},
+			attributeChanged : function(attrName, oldVal, newVal) {
+			},
+			sendOn : function(e, detail, target) {
+				this.feedbackOpacity = 0.8;
+				var self = this;
+				setTimeout(function(){
+					self.feedbackOpacity = 0;
+				},1500);
+				var dev = devices[target.value];
+				dev.Value = 1;
+				dev.Status = 1;
+                dev.Dimlevel = 255;
+                dev.Action = 1;
+                $.post("pdevice/on", JSON.stringify(devices[target.value]), function(result){
+                    console.log(result);
+                    });
+            },
+			sendOff : function(e, detail, target) {
+				this.feedbackOpacity = 0.8;
+				var self = this;
+				setTimeout(function(){
+					self.feedbackOpacity = 0;
+				},1500);
+				var dev = devices[target.value];
+				dev.Value = 2;
+				dev.Status = 2;
+                dev.Action = 2;
+				dev.Dimlevel = 0;
+                $.post("pdevice/off", JSON.stringify(dev), function(result){
+                    console.log(result);
+                    });
+            },
+			setRange : function(e, detail, target) {
+			    //this.$.nameInput.value ::: nameInput is element "id" so value can be accessed this way
+				this.feedbackOpacity = 0.8;
+				var self = this;
+				setTimeout(function(){
+					self.feedbackOpacity = 0;
+				},1500);
+				console.log(detail);
+				var dev = devices[target.id];
+				dev.Dimlevel = parseInt(dev.Dimlevel);
+                $.post("pdevice/dim", JSON.stringify(dev), function(result){
+                    console.log(result);
+                    });
+            },
+            getBulb : function (value) {
+                return (value==1)?"../images/light_bulb.png":"../images/light_bulb_off.png";
+            }
+		});
+
+	</script>
+
+</polymer-element>

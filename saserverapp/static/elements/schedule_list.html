@@ -1,0 +1,199 @@
+<link rel="import" href="../bower_components/polymer/polymer.html">
+
+<polymer-element name="schedule-list"  attributes="entries">
+
+    <template>
+        <style>
+            :host {
+            position: relative;
+            display: inline-block;
+            background-color: lemonChiffon;
+            bottom: 0px;
+            height: 800px;
+            }
+
+            #feedback {
+            transition: opacity 350ms ease-in-out;
+            }
+        </style>
+        <table   width="100%" style="background-color:lightgreen;">
+            <tbody>
+            <template repeat="{{day in day2cronNum}}">
+                <tr>
+                    <td>{{day}}</td>
+                    <td>
+                        <input id="{{day}}" type="checkbox" value="{{day2cronNum_dict[day]}}" on-change="{{daysCheckboxEvent}}"> </input>
+                    </td>
+                </tr>
+            </template>
+
+
+            </tbody>
+        </table>
+        <table id="m_dev_table" width="100%" style="background-color:lightblue;">
+            <!-- <caption>HK</caption>
+            <colgroup span="2" title="title"></colgroup>
+            -->
+            <tbody>
+            <template repeat="{{dev in devices}}">
+                <tr>
+                    <td>{{dev.Name}}</td>
+                    <td>
+                        <input id="{{dev.Name}}" type="checkbox" value="{{dev.Name}}" on-change="{{checkboxEvent}}"> </input>
+                    </td>
+                </tr>
+            </template>
+            <!--
+            <tr>
+                <td style="min-width: 15em;" ><span id="feedback" style="opacity: {{feedbackOpacity}} ">{{feedback}}</span></td>
+            </tr>
+            -->
+            <div style=" opacity: {{feedbackOpacity}}" id="feedback" >
+                command sent!
+            </div>
+            </tbody>
+        </table>
+
+        <div>
+            <input type="time" name="event_time" id="event_time" value="{{scheduleTime}}">
+            <select id="action" value="{{scheduleAction}}">
+                <option value="on">on</option>
+                <option value="off">off</option>
+                <option value="dim">dim</option>
+            </select>
+            <input type="number" min="0" max="255" id="event_dimlevel" value="{{dimLevel}}">
+
+        </div>
+        <div>
+            <button on-click="{{saveSchedule}}" id="saveButton">
+                save
+            </button>
+        </div>
+
+        <table id="cron_table" width="100%">
+            <tbody>
+            <template repeat="{{entry in entries}}">
+                <tr>
+                    <td>{{entry}}</td>
+                </tr>
+            </template>
+            </tbody>
+        </table>
+
+
+    </template>
+
+    <script>
+		Polymer('schedule-list', {
+		    day2cronNum_dict :  {"Sunday":0,"Monday":1,"Tuesday":2,"Wednesday":3,"Thursday":4,"Friday":5,"Saturday":6},
+            day2cronNum :  ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+			show : false,
+			devices: [],
+			feedbackOpacity : 0,
+			feedback : 'command sent!',
+			command : 'None',
+			addedDevices : {},
+			addedDays : {},
+			scheduleAction : "on",
+			scheduleTime : "00:00",
+			dimLevel : 0,
+			loadThis : function(e, detail, target) {
+				console.log('device-list: loadThis');
+			},
+			created : function() {
+				console.log('device-list: created: ');
+			},
+			ready : function() {
+			    self = this;
+				function waitForElement() {
+        		    if(typeof devices !== "undefined"){
+
+                        var keys = Object.keys(devices);
+                        for(var i=0,len = keys.length;i<len;i++) {
+                            if(devices[keys[i]].Type < 2) {
+                                self.devices.push(devices[keys[i]]);
+                            }
+                            console.log(keys[i]);
+                        console.log("HERE");
+                        }
+
+                        for(var i=0,len = self.devices.length;i<len;i++) {
+                            console.log('device-list: ready: ' + self.devices[i].Name);
+                        }
+
+    		        }
+    		        else{
+        		        setTimeout(function(){
+            		        waitForElement();
+        		        },250);
+    		        }
+                }
+
+		        waitForElement();
+
+                var url = "get_cron_entries";
+                $.getJSON(url, function(data, status) {
+                    self.entries = [];
+                    if (status !== "success")
+                        throw "Cannot get cron entries";
+                    var keys = Object.keys(data);
+                    for(var i=0,len = keys.length;i<len;i++) {
+                        self.entries.push(data[keys[i]])
+                    }
+                });
+			},
+			enteredView : function() {
+			},
+			leftView : function() {
+			},
+			attributeChanged : function(attrName, oldVal, newVal) {
+			},
+			saveSchedule : function(e, detail, target) {
+			    var cronSchedule = {};
+
+			    console.log(Object.keys(this.addedDevices));
+			    console.log(this.addedDays);
+			    var tt = this.scheduleTime.split(':');
+			    var h = parseInt(tt[0]);
+			    var m = parseInt(tt[1]);
+			    console.log(this.scheduleAction + " " + "h:" + h + " m:"  + m + " " + this.dimLevel);
+			    var keys = Object.keys(this.addedDays);
+			    for(var i=0,len=keys.length;i<len;i++) {
+			        keys[i] = parseInt(keys[i]);
+			    }
+                cronSchedule["CronDays"] = keys;
+                cronSchedule["CronTime"] = [h,m];
+                cronSchedule["Devices"] = Object.keys(this.addedDevices);
+                cronSchedule["Action"] = this.scheduleAction;
+                cronSchedule["Value"] = parseInt(this.dimLevel);
+                cronSchedule["Dimlevel"] = parseInt(this.dimLevel);
+                cronSchedule["Id"] = "myTrigger";
+                cronSchedule["Group"]="switches";
+                console.log(JSON.stringify(cronSchedule));
+
+                $.post("add_schedule", JSON.stringify(cronSchedule), function(result){
+                    console.log(result);
+                    });
+            },
+            checkboxEvent : function(e, detail, target) {
+                console.log("checkboxEvent:" + target.value + " checked:" + target.checked);
+                if (target.checked) {
+                    this.addedDevices[target.value] = 1;
+                } else {
+                    delete this.addedDevices[target.value];
+                }
+            },
+            daysCheckboxEvent : function(e, detail, target) {
+                console.log("daysCheckboxEvent:" + target.value + " checked:" + target.checked);
+                if (target.checked) {
+                    this.addedDays[target.value] = 1;
+                } else {
+                    delete this.addedDays[target.value];
+                }
+            }
+
+		});
+
+	</script>
+
+</polymer-element>

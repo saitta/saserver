@@ -1,0 +1,52 @@
+TELLDUS golang API
+
+API is in "telldus" folder.
+
+Current status 2015-04-15
+-------------------------------------
+Parts of the Telldus C API is implemented.
+Tested on Linux amd64 and Linux ARM.
+
+No windows support yet.
+Telldus server uses named pipes in windows, following package could be used to add windows support.
+http://godoc.org/gopkg.in/natefinch/npipe.v2
+
+Communication to telldus server is done via unix socket interface.
+
+Following Telldus API calls are implemented (see telldus C API doc)
+( http://developer.telldus.com/doxygen/ )
+--------------------------------------------------------------------
+func (cli *Client) TdTurnOn(id int) int 
+func (cli *Client) TdTurnOff(id int) int 
+func (cli *Client) TdDim(id int, level int) int 
+func (cli *Client) TdGetNumberOfDevices() int 
+func (cli *Client) TdGetName(id int) string 
+func (cli *Client) TdGetDeviceId(nr int) int 
+func (cli *Client) TdMethods(id int, selector int) int 
+func (cli *Client) TdLastSentCommand(id int, selector int) int 
+func (cli *Client) TdLastSentValue(id int) (res int)  
+func (cli *Client) TdSensorValue(sen *Sensor) (value float64, t1 time.Time) 
+
+Device and Sensor events passed to channels
+---------------------------------------------
+func (cli *ClientEvent) Read() 
+
+Directory structure
+-------------------
+cron
+  a special version of https://github.com/robfig/cron which supports deleting cron entries
+github.com
+ github.com/soniakeys/meeus/julian is used in suncalc
+README
+  this file
+saserverapp
+  http server example usage of telldus API, see README in folder
+saserver-tdtool
+  http server example using tdtool executable , DEPRECATED
+suncalc
+  calculate sunrise, sunset
+telldus
+  The telldus API, conect to telldus server via socket
+telldusc
+  The telldus C API via cgo,  DEPRECATED
+  (OBS! Race condition when listening on events from the registered C callback)

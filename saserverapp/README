@@ -1,0 +1,30 @@
+SASERVERAPP README
+
+Http server which presents a small API towards the Telldus server
+Example webpages
+ (1) http://yourhost:8081  lists devices that support methods
+ 	TELLSTICK_TURNON
+ 	TELLSTICK_TURNOFF
+ 	TELLSTICK_DIM
+
+ (2) http://bone:8081/saschedule.html   modify/display scheduled events
+
+# get device map, "Name" is key
+curl  http://bone:8081/get_devices
+
+# switch on,  only Id used to switch off
+curl -X POST --data '{"Id":1,"Name":"uthus","Description":"","Type":0,"Status":2,"Action":2,"Dimlevel":0,"Value":0,"Unit":""}' http://bone:8081/pdevice/on
+
+# switch off, only Id used to switch off
+curl -X POST --data '{"Id":1,"Name":"uthus","Description":"","Type":0,"Status":2,"Action":2,"Dimlevel":0,"Value":0,"Unit":""}' http://bone:8081/pdevice/off
+
+# Dim kök to half (255 max), ID and Dimlevel used
+curl -X POST --data '{"Id":5,"Name":"kökg","Description":"","Type":0,"Status":2,"Action":2,"Dimlevel":128,"Value":0,"Unit":""}'  http://bone:8081/pdevice/dim
+
+# get the next scheduled cron events
+curl http://bone:8081/get_cron_entries
+{"1":"2015-04-16 06:30:00 +0000 UTC 0 30 6 * * 0,1,2,3,4,5,6:ute:off:0","2":"2015-04-16 03:50:00 +0000 UTC 0 50 3 * * 1,2,3,4,5:ute:on:0"}
+
+# Schedule events, saved to file "schedule.json" and loaded when server starts
+curl -X POST --data '{"CronDays":[1,2],"CronTime":[8,0],"Devices":["källare"],"Action":"on","Value":0,"Dimlevel":0,"Id":"myTrigger","Group":"switches"}' http://bone:8081/add_schedule
+

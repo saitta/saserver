@@ -1,0 +1,44 @@
+
+body {
+  background-color: #F8F8F8;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  font-weight: normal;
+  line-height: 1.2em;
+  margin: 15px;
+}
+
+h1, p {
+  color: #333;
+}
+
+footer {
+	width: 100%;
+	bottom: 0;
+	position: fixed;
+}
+
+.command_container {
+  width: 100%;
+  height: 100px;
+  position: relative;
+  border: 1px solid #ccc;
+  background-color: #FFFFFF;
+}
+
+.command_container * {
+  font-size: x-small;	  
+}
+
+#command_box {
+  background-color: LemonChiffon;
+  display: inline-block;
+  border: solid 1px;
+  padding: 10px 10px 10px 10px;
+  vertical-align: top;
+  opacity: 1;
+  position: relative;	
+  width: 80%;
+}
+
+
