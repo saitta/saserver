@@ -31,6 +31,23 @@ Device and Sensor events passed to channels
 ---------------------------------------------
 func (cli *ClientEvent) Read() 
 
+
+Download and Test
+-----------------------------------------------
+Test on the computer with tellstick duo connected.
+
+export GOPATH=`pwd`
+
+go get github.com/saitta/saserver
+go get github.com/soniakeys/meeus/julian
+
+cd src/github.com/saitta/saserver/saserverapp
+go build
+./saserverapp 
+
+point chrome browser to http://your_tellstick_host:8081
+Control your devices :)
+
 Directory structure
 -------------------
 cron
