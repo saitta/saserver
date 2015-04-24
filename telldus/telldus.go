@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -57,6 +58,9 @@ const (
 
 type TDTool map[string]*Device
 type TDToolId map[int]*Device
+
+//mutex is used to protect access to localTelldusClient
+var lt_mutex = &sync.Mutex{}
 
 var localTelldusClient *Client
 
@@ -157,7 +161,9 @@ func (cli *ClientEvent) Read() {
 				//rest := strings.Split(str, res[1])[1]
 				allInts := getAllInts(str)
 				//[{19 7} {22 2}]
-				dev := Device{Id: allInts[0].val, Status: allInts[1].val, Action: allInts[1].val}
+				lt_mutex.Lock()
+				dev := Device{Name: localTelldusClient.TdGetName(allInts[0].val), Id: allInts[0].val, Status: allInts[1].val, Action: allInts[1].val}
+				lt_mutex.Unlock()
 				if dev.Action == TELLSTICK_DIM {
 					if dimlevel, err := strconv.Atoi(getSecondString(str)); err == nil {
 						dev.Dimlevel = dimlevel
@@ -388,6 +394,7 @@ func (cli *Client) Cleanup() {
 
 func NewTDTool() *TDTool {
 	my_devices := make(TDTool)
+	lt_mutex.Lock()
 	intNumberOfDevices := localTelldusClient.TdGetNumberOfDevices()
 
 	for i := 0; i < intNumberOfDevices; i++ {
@@ -438,6 +445,6 @@ func NewTDTool() *TDTool {
 			fmt.Printf("%v %f %d %s\n", sen, value, t1, thisDevice.String())
 		}
 	}
-
+	lt_mutex.Unlock()
 	return &my_devices
 }

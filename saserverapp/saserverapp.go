@@ -5,9 +5,12 @@ package main
 */
 
 import (
-	"github.com/saitta/saserver/cron"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/websocket"
+	"github.com/saitta/saserver/cron"
+	"github.com/saitta/saserver/suncalc"
+	"github.com/saitta/saserver/telldus"
 	"log"
 	"math"
 	"net/http"
@@ -16,9 +19,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"github.com/saitta/saserver/suncalc"
 	"sync"
-	"github.com/saitta/saserver/telldus"
 	"time"
 )
 
@@ -36,6 +37,96 @@ const AMSTERDAM_LAT = float64(52.366667) * math.Pi / 180
 const AMSTERDAM_LON = float64(4.9) * math.Pi / 180
 
 var cron_id map[cron.EntryID]cron.EntryID = make(map[cron.EntryID]cron.EntryID)
+
+type connection struct {
+	// The websocket connection.
+	ws *websocket.Conn
+
+	// Buffered channel of outbound messages.
+	send chan []byte
+}
+
+type hub struct {
+	// Registered connections.
+	connections map[*connection]bool
+
+	// Register requests from the connections.
+	register chan *connection
+
+	// Unregister requests from connections.
+	unregister chan *connection
+
+	event chan *telldus.Device
+}
+
+var h = hub{
+	register:    make(chan *connection),
+	unregister:  make(chan *connection),
+	connections: make(map[*connection]bool),
+	event:       make(chan *telldus.Device),
+}
+
+func (h *hub) run() {
+	for {
+		select {
+		case con := <-h.register:
+			h.connections[con] = true
+		case con := <-h.unregister:
+			if _, ok := h.connections[con]; ok {
+				delete(h.connections, con)
+				close(con.send)
+			}
+		case evt := <-h.event:
+			if tosend, err := json.Marshal(*evt); err == nil {
+				for con := range h.connections {
+					select {
+					case con.send <- []byte(tosend):
+					default:
+						delete(h.connections, con)
+						close(con.send)
+					}
+				}
+			}
+		}
+	}
+}
+
+//reader will read telecommand from websocket client and
+//put it into the HUBs common telecommand channel
+func (con *connection) reader() {
+	for {
+		_, message, err := con.ws.ReadMessage()
+		if err != nil {
+			break
+		}
+		fmt.Println(message)
+	}
+	con.ws.Close()
+}
+
+func (con *connection) writer() {
+	for message := range con.send {
+		err := con.ws.WriteMessage(websocket.TextMessage, message)
+		if err != nil {
+			break
+		}
+	}
+	con.ws.Close()
+}
+
+var upgrader = &websocket.Upgrader{ReadBufferSize: 4096, WriteBufferSize: 1024}
+
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	con := &connection{send: make(chan []byte, 256), ws: ws}
+	h.register <- con
+	defer func() { h.unregister <- con }()
+	go con.writer()
+	con.reader()
+}
 
 type CronSchedule struct {
 	CronDays []int
@@ -294,7 +385,11 @@ func sunJobCreator() {
 	}
 }
 
+var prevTimeOn = time.Now().Add(-time.Minute)
+var prevTimeOff = time.Now().Add(-time.Minute)
+
 func updateDevice(devE <-chan *telldus.Device, senE <-chan *telldus.Sensor) {
+
 	for {
 		select {
 		case d := <-devE:
@@ -311,12 +406,49 @@ func updateDevice(devE <-chan *telldus.Device, senE <-chan *telldus.Sensor) {
 				case telldus.TELLSTICK_TURNOFF:
 					dev.Dimlevel = 0
 				}
+				h.event <- dev
 			}
 			mutex.Unlock()
+			if d.Id == 10 {
+				switch d.Action {
+				case telldus.TELLSTICK_TURNON:
+					fmt.Printf("ON timesince:%v sec10:%v\n", time.Since(prevTimeOn), time.Second*10)
+					if time.Since(prevTimeOn) > time.Second*10 {
+						fmt.Println("swich on")
+						prevTimeOn = time.Now()
+						mutex.Lock()
+						dev, ok := (*mtdtool)["källare"]
+						mutex.Unlock()
+						if ok {
+							go func() {
+								time.Sleep(time.Millisecond * 1500)
+								dev.On()
+							}()
+						}
+					}
+				case telldus.TELLSTICK_TURNOFF:
+					fmt.Printf("OFF timesince:%v sec10:%v\n", time.Since(prevTimeOff), time.Second*10)
+					if time.Since(prevTimeOff) > time.Second*10 {
+						fmt.Println("swich off")
+						prevTimeOff = time.Now()
+						mutex.Lock()
+						dev, ok := (*mtdtool)["källare"]
+						mutex.Unlock()
+						if ok {
+							go func() {
+								time.Sleep(time.Millisecond * 1500)
+								dev.Off()
+							}()
+						}
+					}
+				}
+			}
+
 		case s := <-senE:
 			mutex.Lock()
 			if sen, ok := (*mtdtoolId)[s.Id]; ok {
 				sen.Value = s.Value
+				h.event <- sen
 			}
 			mutex.Unlock()
 		}
@@ -341,9 +473,12 @@ func main() {
 	defer evr.Cleanup()
 	go updateDevice(dev_events, sen_events)
 
+	go h.run()
+	http.HandleFunc("/ws", wsHandler)
+
 	defer telldus.Cleanup()
 	myCron = cron.New()
-	myCron.AddFunc("0 0 21 * * *", sunJobCreator)
+	myCron.AddFunc("0 1 0 * * *", sunJobCreator)
 
 	myCron.Start()
 	sunJobCreator()

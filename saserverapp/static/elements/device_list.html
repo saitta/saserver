@@ -1,6 +1,6 @@
 <link rel="import" href="../bower_components/polymer/polymer.html">
 
-<polymer-element name="device-list"  attributes="stuff">
+<polymer-element name="device-list"  attributes="devices">
 
     <template>
         <style>
@@ -17,17 +17,22 @@
             padding: 12px;
             }
 
+            #temp {
+            color: #222;
+            text-shadow: 0px 2px 3px #555;
+            }
+
             #feedback {
             transition: opacity 350ms ease-in-out;
             }
         </style>
+        <div id="temp">Temperature {{temp.Value}} &deg;</div>
         <div>
             <table id="m_dev_table" width="100%">
                 <!-- <caption>HK</caption>
                 <colgroup span="2" title="title"></colgroup>
                 -->
                 <tbody>
-
                     <template repeat="{{dev in devices}}">
                         <tr>
                         <td>{{dev.Name}}</td>
@@ -66,8 +71,11 @@
     </template>
 
     <script>
+        var websocket;
+
 		Polymer('device-list', {
 			show : false,
+			temp : 0,
 			feedbackOpacity : 0,
 			feedback : 'command sent!',
 			command : 'None',
@@ -121,6 +129,8 @@
                         for(var i=0,len = keys.length;i<len;i++) {
                             if(devices[keys[i]].Type < 2) {
                                 self.devices.push(devices[keys[i]]);
+                            } else if ( devices[keys[i]].Type == 2 ) {
+                                self.temp = devices[keys[i]];
                             }
                             console.log(keys[i]);
                         }
@@ -138,6 +148,37 @@
 		        waitForElement();
 			},
 			enteredView : function() {
+                websocket = new WebSocket("ws://" + location.host + "/ws");
+                self = this;
+                window.onbeforeunload = function() {
+                    websocket.onclose = function() {
+                    };
+                    // disable onclose handler first
+                    websocket.close();
+                };
+
+                //websocket.binaryType = "arraybuffer";
+
+                websocket.onopen = function(evt) {
+                    console.log("websocket opened");
+                };
+                websocket.onclose = function(evt) {
+                    websocket.close();
+                };
+
+                websocket.onmessage = function(data) {
+                    var obj = JSON.parse(data.data);
+                    for(var i=0,len = self.devices.length;i<len;i++) {
+                        if (self.devices[i].Id == obj.Id) {
+                            self.devices[i] = obj;
+                        }
+                    }
+                };
+
+                websocket.onerror = function(evt) {
+                    throw "Websocket ERROR";
+                };
+
 			},
 			leftView : function() {
 			},

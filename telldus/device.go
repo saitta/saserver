@@ -27,19 +27,25 @@ func (d *Device) String() string {
 func (d *Device) Dim(level int) string {
 	d.Status = level
 	d.Dimlevel = level
+	lt_mutex.Lock()
 	localTelldusClient.TdDim(d.Id, d.Dimlevel)
+	lt_mutex.Unlock()
 	return d.Name
 }
 
 func (d *Device) On() string {
 	d.Status = 1
+	lt_mutex.Lock()
 	localTelldusClient.TdTurnOn(d.Id)
+	lt_mutex.Unlock()
 	return d.Name
 }
 
 func (d *Device) Off() string {
 	d.Status = 2
+	lt_mutex.Lock()
 	localTelldusClient.TdTurnOff(d.Id)
+	lt_mutex.Unlock()
 	return d.Name
 }
 
